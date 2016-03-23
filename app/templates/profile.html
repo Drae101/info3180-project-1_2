@@ -1,19 +1,30 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
-{% block content %}
-    <div class="col-xs-5">
-        <img src="{{ user.get_image_url() }}" class="col-xs-12"/>
+
+{% block js %}
+{% endblock %}
+
+
+{% block main %}
+<div class="page">
+  <div class="head">
+    <img src="/static/img/silhouette.jpg">
+    <div class="profile_name">
+      <h1>Alex McDoom</h1>
     </div>
-    <div class="col-xs-ofset-5 col-xs-7">
-        <div class="alert alert-info">{{ user.first_name }} {{ user.last_name }}</div>
-        <div class="alert alert-info">Profile added on: {{ user.added_on.strftime("%a, %d %b %Y") }}</div>
-        <div class="alert alert-info">
-            Username: {{ user.username }}<br/>
-            ID: {{ user.user_id }}<br/>
-            Sex: {{ user.get_sex_display() }}<br/>
-            Age: {{ user.age }}<br/>
-            Highest score: {{ user.high_score }}<br/>
-            TDollars: {{ user.tdollars }}<br/>
-        </div>
-    </div>
+  </div>
+  <div class="p_datebox content">
+    <p>{{date}}</p>
+  </div>
+  <div class="p_content content">
+    <p>
+      Username: Alex<br />
+      ID: 620025254<br />
+      Sex: Male<br />
+      Age: 23<br />
+      Highest Score: 10 000<br />
+      TDollars: 1 000 000<br />
+    </p>
+  </div>
+</div>
 {% endblock %}

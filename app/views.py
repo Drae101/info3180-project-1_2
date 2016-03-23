@@ -1,128 +1,154 @@
-# coding=utf-8;
+"""
+Flask Documentation:     http://flask.pocoo.org/docs/
+Jinja2 Documentation:    http://jinja.pocoo.org/2/documentation/
+Werkzeug Documentation:  http://werkzeug.pocoo.org/documentation/
 
+This file creates your application.
+"""
+
+from app import app
+from flask import render_template, request, redirect, url_for
+from app import db
+from app.models import User
+from flask import jsonify, session
+from datetime import *
+from .forms import NewProfileForm
+import json
+from flask import Response
+from werkzeug import secure_filename
 import os
 
-from flask import render_template, request, redirect, url_for, \
-  send_from_directory, flash, jsonify
 
-from app import app  
-from models import User, db
-from forms import ProfileForm
-
-
-def _request_is_ajax():
-    return request.headers['Content-Type'] == 'application/json'
-
-  
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1] in app.config['ALLOWED_EXTENSIONS']
-
+###
+# Routing for your application.
+###
 
 @app.route('/')
-def hello_world():
-    return redirect(url_for('profiles'))
+def home():
+    """Render website's home page."""
+    return render_template('home.html')
 
 
-@app.route('/create_db')
-def create_db():
-    db.create_all()
-    return "Created"
+@app.route('/about/')
+def about():
+    """Render the website's about page."""
+    return render_template('about.html')
+  
+# @app.route('/profile/')
+# def profile():
+#   """Render the profile page"""
+#   return render_template('profile.html', date=timeinfo())
 
+# import time
+# def timeinfo():
+#   """Return string with date formatted as specified"""
+#   return "Today is: " + time.strftime("%a, %d %b, %Y")
 
-@app.route('/profile', methods=['GET', 'POST'])
+@app.route('/profile/', methods=['POST', 'GET'])
 def profile():
-    form = ProfileForm()
-
-    if request.method == 'POST':
-        if form.validate_on_submit():
-            username = form.username.data
-
-            if not User.query.filter_by(username=username).first():
-                user = User(username=username,
-                            first_name=form.first_name.data,
-                            last_name=form.last_name.data,
-                            age=form.age.data)
-
-                db.session.add(user)
-                db.session.commit()
-
-                uploaded_file = request.files['image']
-                if uploaded_file and allowed_file(uploaded_file.filename):
-                    filename = 'user_profile_{0}.{1}'.format(
-                        user.user_id, uploaded_file.filename.split('.')[-1]
-                    )
-                    uploaded_file.save(os.path.join(app.config['UPLOAD_FOLDER'],
-                                                    filename))
-                    user.image = filename
-                    db.session.commit()
-
-                    return redirect(url_for('profiles'))
-
-            # User already exist. Can't create
-            flash(u"User with username %s already exist" % username)
-
-        for field, errors in form.errors.items():
-            for error in errors:
-                flash(u"Error in the %s field - %s" % (
-                    getattr(form, field).label.text,
-                    error
-                ))
-
-    return render_template('profile_form.html', form=form)
-
-
-@app.route('/profiles', methods=['GET', 'POST'])
-def profiles():
-    users = User.query.all()
-
-    if _request_is_ajax() and request.method == 'POST':
-        json_res = {}
-        for user in users:
-            json_res.update({
-                'username': user.username,
-                'userid': user.user_id
-            })
-        return jsonify(json_res)
-
-    return render_template('profiles_list.html', users=users)
-
-
-@app.route('/profile/<int:user_id>')
-def profile_detail(user_id):
-    user = User.query.get(user_id)
-
-    if not user:
-        return redirect(url_for('profiles'))
-
-    if _request_is_ajax() and request.method == 'POST':
-        return jsonify({
-            "userid": user.user_id,
-            "username": user.username,
-            "image": user.get_image_url(),
-            "sex": user.get_sex_display(),
-            "age": user.age,
-            "profile_add_on": user.added_on.strftime("%a, %d %b %Y"),
-            "high_score": user.high_score,
-            "tdollars": user.tdollars,
-            })
-
-    return render_template('profile.html', user=user)
-
-
-@app.route('/uploads/<path:path>')
-def send_uploads(path):
-    return send_from_directory(app.config['UPLOAD_FOLDER'], path)
-  
-
-@app.route('/profile/delete/<int:user_id>', methods=['GET', 'POST'])
-def delete_profile(user_id):
-  user = User.query.get(user_id)
-
-  if user:
-    db.session.delete(user)
+  """Render the profile page"""
+  form = NewProfileForm()
+  if form.validate_on_submit():
+    #add user to db
+    un = request.form['username']
+    em = request.form['email']
+    im = request.files['image']
+    im_fn = un + '_' + secure_filename(im.filename)
+    file_path = os.path.join(app.config['UPLOAD_FOLDER'], im_fn)
+    im.save(file_path)
+    fn = request.form['fname']
+    ln = request.form['lname']
+    ag = int(request.form['age'])
+    sx = request.form['sex']
+    newUser = User(un, em, im_fn, fn, ln, ag, sx, timeinfo())
+    db.session.add(newUser)
     db.session.commit()
+    nu = User.query.filter_by(username=un).first()
+    return redirect('/profile/'+str(nu.id))
+  return render_template('form.html', form=form)
+#   if request.method == 'POST':
+#     #add user to db
+#     un = request.form['username']
+#     em = request.form['email']
+#     im = request.form['image']
+#     fn = request.form['fname']
+#     ln = request.form['lname']
+#     ag = int(request.form['age'])
+#     sx = request.form['sex']
+#     newUser = User(un, em, im, fn, ln, ag, sx)
+#     db.session.add(newUser)
+#     db.session.commit()
+#   else:
+#     #serve form page
+#     form = NewProfileForm()
+#     return render_template('form.html', form=form)
 
-  return redirect(url_for('profiles'))
+import time
+def timeinfo():
+  """Return current datetime obj"""
+#   return "Today is: " + time.strftime("%a, %d %b, %Y")#need to alter to match postgres date fmt
+  return datetime.now()
+
+@app.route('/profile/<userid>', methods=['POST', 'GET'])
+def user_profile(userid):
+  usr = User.query.filter_by(id=userid).first()
+  imgURL = url_for('static', filename='img/uploads/'+usr.image)
+#   if (request.method == 'POST' or request.headers['Content-Type'] == 'application/json'):
+  if request.method == 'POST':
+    #return json
+    return jsonify(id=usr.id, uname=usr.username, image=imgURL, sex=usr.sex, age=usr.age, highscore=usr.highscore, tdollars=usr.tdollars)
+  else:
+#     usr = User.query.filter_by(id=userid).first()
+#random comment just so I can push and build to heroku
+    user = {'id':usr.id, 'uname':usr.username, 'image':imgURL, 'age':usr.age, 'email':usr.email, 'fname':usr.fname, 'lname':usr.lname, 'sex':usr.sex, 'highscore':usr.highscore, 'tdollars':usr.tdollars}
+    return render_template('userprofile.html', user=user, datestr=date_to_str(usr.datejoined))
   
+def date_to_str(dt):
+  return dt.strftime("%a, %d %b, %Y")
   
+
+# @app.route('/profiles', methods=["POST", "GET"])
+@app.route('/profiles/', methods=["GET", "POST"])
+def profiles():
+  users = db.session.query(User).all()
+  if request.method == "POST":
+#   if request.headers['Content-Type'] == 'application/json':
+    lst=[]
+    for user in users:
+      lst.append({'id':user.id, 'uname':user.username, 'image':user.image, 'sex':user.sex, 'age':user.age, 'highscore':user.highscore, 'tdollars':user.tdollars})
+    users = {'users': lst}
+    return Response(json.dumps(users), mimetype='application/json')
+  else:
+    return render_template('profiles.html', users=users)
+
+
+###
+# The functions below should be applicable to all Flask apps.
+###
+
+@app.route('/<file_name>.txt')
+def send_text_file(file_name):
+    """Send your static text file."""
+    file_dot_text = file_name + '.txt'
+    return app.send_static_file(file_dot_text)
+
+
+@app.after_request
+def add_header(response):
+    """
+    Add headers to both force latest IE rendering engine or Chrome Frame,
+    and also to cache the rendered page for 10 minutes.
+    """
+    response.headers['X-UA-Compatible'] = 'IE=Edge,chrome=1'
+    response.headers['Cache-Control'] = 'public, max-age=600'
+    return response
+
+
+@app.errorhandler(404)
+def page_not_found(error):
+    """Custom 404 page."""
+    return render_template('404.html'), 404
+
+
+if __name__ == '__main__':
+    app.run(debug=True,host="0.0.0.0",port="8888")
